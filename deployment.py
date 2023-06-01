@@ -50,14 +50,6 @@ def custom_binary_loss(y_true, y_pred):
 best_model = tf.keras.models.load_model('best_model_AML.h5', custom_objects={'custom_binary_loss': custom_binary_loss})
 
 
-img_path = df_train['path'][1]
-img = cv2.imread(img_path, cv2.IMREAD_ANYDEPTH)
-img = (img - img.min())/(img.max() - img.min())*255.0 
-img = cv2.resize(img, (256, 256))
-img = np.expand_dims(img, axis=-1)
-img = img.astype(np.float32) / 255.
-pred = best_model.predict(np.array([img]))
-
 
 
 
@@ -85,12 +77,6 @@ def color_class(pred):
 
   return tot_mask
 
-mask_pred = color_class(pred)
-
-plt.figure(figsize=(5*5, 7))
-plt.imshow(img, cmap='bone', alpha=1)
-plt.imshow(mask_pred, alpha=0.45, cmap='hot')
-plt.axis('off')
 
 
 def main():
