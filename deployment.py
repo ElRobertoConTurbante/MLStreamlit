@@ -11,48 +11,7 @@ from PIL import Image
 #Read data 
 
 import pandas as pd
-df = pd.read_csv('train.csv')
 
-
-# Working with the dataframe. 
-df.rename(columns = {'class':'class_name'}, inplace = True)
-
-# Creating new columns called case, day and slice to store caseid, day9d, slideid
-df["case"] = df["id"].apply(lambda x: int(x.split("_")[0].replace("case", "")))
-df["day"] = df["id"].apply(lambda x: int(x.split("_")[1].replace("day", "")))
-df["slice"] = df["id"].apply(lambda x: x.split("_")[3])
-
-# Extracting images from Train folder
-TRAIN_DIR="/Users/carlosnino/Documents/random/AML/proyectoF/train"
-all_train_images = glob(os.path.join(TRAIN_DIR, "**", "*.png"), recursive=True)
-x = all_train_images[0].rsplit("/", 4)[0] 
-
-path_partial_list = []
-for i in range(0, df.shape[0]):
-    path_partial_list.append(os.path.join(x,
-                          "case"+str(df["case"].values[i]),
-                          "case"+str(df["case"].values[i])+"_"+ "day"+str(df["day"].values[i]),
-                          "scans",
-                          "slice_"+str(df["slice"].values[i])))
-df["path_partial"] = path_partial_list
-
-path_partial_list = []
-for i in range(0, len(all_train_images)):
-    path_partial_list.append(str(all_train_images[i].rsplit("_",4)[0]))
-    
-tmp_df = pd.DataFrame()
-tmp_df['path_partial'] = path_partial_list
-tmp_df['path'] = all_train_images
-
-# Adding the path to images to the dataframe 
-df = df.merge(tmp_df, on="path_partial").drop(columns=["path_partial"])
-
-# Creating new columns height and width from the path details of images
-df["width"] = df["path"].apply(lambda x: int(x[:-4].rsplit("_",4)[1]))
-df["height"] = df["path"].apply(lambda x: int(x[:-4].rsplit("_",4)[2]))
-
-# Deleting redundant columns
-del x,path_partial_list,tmp_df
 
 
 def rle_decode(mask_rle, shape):
@@ -70,59 +29,12 @@ def rle_decode(mask_rle, shape):
     return img.reshape(shape)  # Needed to align to RLE direction
 
 
-df_train = pd.DataFrame({'id':df['id'][::3]})
-
-df_train['large_bowel'] = df['segmentation'][::3].values
-df_train['small_bowel'] = df['segmentation'][1::3].values
-df_train['stomach'] = df['segmentation'][2::3].values
-
-df_train['path'] = df['path'][::3].values
-df_train['case'] = df['case'][::3].values
-df_train['day'] = df['day'][::3].values
-df_train['slice'] = df['slice'][::3].values
-df_train['width'] = df['width'][::3].values
-df_train['height'] = df['height'][::3].values
-
-df_train.reset_index(inplace=True,drop=True)
-df_train = df_train.dropna()
-df_train.reset_index(inplace=True,drop=True)
 
 
-im_large = df_train['large_bowel'][0]
-mask_large = rle_decode(im_large, (266,266,1))
-
-num_0_large = list(mask_large[:][:].flatten()).count(0)
-num_1_large = list(mask_large[:][:].flatten()).count(1)
-
-
-weight_for_0_large = (1.0 / num_0_large) * ((num_0_large+num_1_large) / 2.0)
-weight_for_1_large = (1.0 / num_1_large) * ((num_0_large+num_1_large) / 2.0)
+weight_for_0_large = 1
+weight_for_1_large = 1
 
 class_weights_large = {0:weight_for_0_large, 1:weight_for_1_large}
-
-im_small = df_train['small_bowel'][0]
-mask_small = rle_decode(im_small, (266,266,1))
-
-num_0_small = list(mask_small[:][:].flatten()).count(0)
-num_1_small = list(mask_small[:][:].flatten()).count(1)
-
-
-weight_for_0_small = (1.0 / num_0_small) * ((num_0_small+num_1_small) / 2.0)
-weight_for_1_small = (1.0 / num_1_small) * ((num_0_small+num_1_small) / 2.0)
-
-class_weights_small = {0:weight_for_0_small, 1:weight_for_1_small}
-
-im_stomach = df_train['stomach'][0]
-mask_stomach = rle_decode(im_stomach, (266,266,1))
-
-num_0_stomach = list(mask_stomach[:][:].flatten()).count(0)
-num_1_stomach = list(mask_stomach[:][:].flatten()).count(1)
-
-
-weight_for_0_stomach = (1.0 / num_0_stomach) * ((num_0_stomach+num_1_stomach) / 2.0)
-weight_for_1_stomach = (1.0 / num_1_stomach) * ((num_0_stomach+num_1_stomach) / 2.0)
-
-class_weights_stomach = {0:weight_for_0_stomach, 1:weight_for_1_stomach}
 
 def custom_binary_loss(y_true, y_pred):
   y_true = K.flatten(y_true)
